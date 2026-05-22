@@ -21,6 +21,7 @@ quantized inference on Google Colab's free T4 GPU.
 
 ## Architecture
 
+```text
 Testing-Kanojo/
 ├── config/
 │   ├── config.json          # Model & memory hyperparameters
@@ -39,6 +40,7 @@ Testing-Kanojo/
 │   ├── dialogues_rei.txt    # Rei reference dialogues (20 pairs)
 │   └── dialogues_kaito.txt  # Kaito reference dialogues (20 pairs)
 └── AI_Girlfriend.ipynb      # Main notebook
+```
 
 ---
 
