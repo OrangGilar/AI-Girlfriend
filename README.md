@@ -20,6 +20,7 @@ quantized inference on Google Colab's free T4 GPU.
 ---
 
 ## Architecture
+
 Testing-Kanojo/
 ├── config/
 │   ├── config.json          # Model & memory hyperparameters
