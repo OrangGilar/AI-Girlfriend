@@ -15,6 +15,7 @@ from typing import Any, Optional
 
 @dataclass
 class Persona:
+    character_id: str
     name: str
     age: int
     personality: str
@@ -29,6 +30,13 @@ class Persona:
     greeting_female: str = ""
     dialogue_file: str = "data/anime_dialogues.txt"
     user_gender: str = "neutral"
+    is_custom: bool = False
+    relationship_mode: str = "friend"
+    language_style: str = "english"
+    response_length: str = "short"
+    boundaries: list[str] = field(default_factory=list)
+    custom_rules: list[str] = field(default_factory=list)
+    example_dialogues: list[dict[str, str]] = field(default_factory=list)
 
     @property
     def greeting(self) -> str:
@@ -65,11 +73,13 @@ class Persona:
             char.setdefault("greeting_male", char.get("greeting", ""))
             char.setdefault("greeting_female", char.get("greeting", ""))
             char.setdefault("dialogue_file", "data/anime_dialogues.txt")
+            char.setdefault("is_custom", False)
 
         raw_name = char.get("display_name", char.get("name", "Unknown"))
         name = raw_name.split(" (")[0].strip()
 
         return cls(
+            character_id=char.get("id", character_id),
             name=name,
             age=char.get("age", 17),
             personality=char["personality"],
@@ -84,6 +94,13 @@ class Persona:
             greeting_female=char.get("greeting_female", char.get("greeting", "")),
             dialogue_file=char.get("dialogue_file", "data/anime_dialogues.txt"),
             user_gender=user_gender,
+            is_custom=char.get("is_custom", False),
+            relationship_mode=char.get("relationship_mode", "friend"),
+            language_style=char.get("language_style", "english"),
+            response_length=char.get("response_length", "short"),
+            boundaries=char.get("boundaries", []),
+            custom_rules=char.get("custom_rules", []),
+            example_dialogues=char.get("example_dialogues", []),
         )
 
     def build_prefix(self, memory_summary: str = "") -> str:
@@ -110,6 +127,15 @@ class Persona:
         else:
             gender_note = ""
 
+        length_rules = {
+            "short": "Reply in 1-3 short sentences.",
+            "medium": "Reply in 2-5 focused sentences.",
+            "long": "Use a fuller answer when helpful, but stay conversational.",
+        }
+        reply_length_rule = length_rules.get(
+            self.response_length.lower(), length_rules["short"]
+        )
+
         lines = [
             f"You are {self.name}, a {self.age}-year-old anime character ({self.dere_type}). "
             f"Stay fully in character at all times. Never break the fourth wall.",
@@ -118,11 +144,26 @@ class Persona:
             f"Background: {self.background}",
             f"Likes: {likes}",
             f"Dislikes: {dislikes}",
+            f"Relationship mode: {self.relationship_mode}",
+            f"Language style: {self.language_style}",
         ]
         if gender_note:
             lines.append(gender_note)
+        if self.boundaries:
+            lines.append("Boundaries: " + "; ".join(self.boundaries))
+        if self.custom_rules:
+            lines.append("Custom rules: " + "; ".join(self.custom_rules))
+        if self.example_dialogues:
+            example_lines = []
+            for example in self.example_dialogues[:3]:
+                user = example.get("user", "").strip()
+                assistant = example.get("character", example.get("assistant", "")).strip()
+                if user and assistant:
+                    example_lines.append(f"User: {user}\n{self.name}: {assistant}")
+            if example_lines:
+                lines.append("Style examples:\n" + "\n".join(example_lines))
         lines.append(
-            "Reply in 1-3 short sentences. "
+            f"{reply_length_rule} "
             "Do not narrate actions in asterisks. "
             "Do not describe yourself in the third person."
         )

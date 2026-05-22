@@ -1,143 +1,141 @@
-# Persona Chatbot Multi-Character Anime Companion
+# AI Partner V1.3 - Customizable Persona Chatbot
 
-A Transformer-based persona chatbot supporting **6 unique characters** with
-distinct dere personalities, gender-aware interactions, rolling memory, and
-quantized inference on Google Colab's free T4 GPU.
+AI Partner is a Google Colab-friendly persona chatbot built around Qwen 2.5
+Instruct. V1.3 keeps the six built-in anime-style characters from V1.2 and adds
+the first custom AI workflow: create a character in the notebook, save it to
+JSON, add dialogue examples, and persist memory across runtime restarts.
 
----
-
-## Characters
-
-| # | Name | Type | Gender |
-|---|------|------|--------|
-| 1 | Mai Sakurajima (桜島麻衣) | Tsundere | Female |
-| 2 | Yuki Amane (天音雪) | Kuudere | Female |
-| 3 | Hana Mizuki (水木花) | Dandere | Female |
-| 4 | Sora Himari (陽鞠空) | Deredere | Female |
-| 5 | Rei Shirogane (白銀零) | Himedere | Female |
-| 6 | Kaito Ryusei (流星海斗) | Kuudere | Male |
+RAG knowledge upload, LoRA/QLoRA training, adapter loading, export/import
+packages, and advanced evaluation are planned for later milestones.
 
 ---
 
-## Architecture
+## Features
+
+- Six built-in characters with different personalities and dialogue files.
+- Guided custom AI creation from inside `AI_PartnerV1.3.ipynb`.
+- Custom characters saved to `config/characters.json`.
+- Automatic custom dialogue files in `data/custom_dialogues/`.
+- Persistent memory files in `memory/`.
+- Notebook cells for persona preview, chat, memory controls, and dialogue
+  example entry.
+- V1.2 notebook preserved as `AI_PartnerV1.2.ipynb`.
+
+---
+
+## Project Structure
 
 ```text
-Testing-Kanojo/
+AI-Girlfriend/
+├── AI_Girlfriend.ipynb          # Legacy notebook
+├── AI_PartnerV1.2.ipynb         # Stable V1.2 notebook
+├── AI_PartnerV1.3.ipynb         # V1.3 custom AI notebook
+├── requirements.txt
 ├── config/
-│   ├── config.json          # Model & memory hyperparameters
-│   └── characters.json      # All character definitions
-├── src/
-│   ├── persona.py           # Persona loader & gender-aware system prompt
-│   ├── character_select.py  # Interactive character & gender selection
-│   ├── model.py             # Transformer chatbot (Qwen 2.5-7B, 4-bit)
-│   ├── memory.py            # Rolling summarization memory
-│   └── evaluation.py        # BLEU, perplexity, persona vs baseline
+│   ├── config.json              # Model, memory, UI, and evaluation settings
+│   └── characters.json          # Built-in and custom character definitions
 ├── data/
-│   ├── anime_dialogues.txt  # Mai reference dialogues (30 pairs)
-│   ├── dialogues_yuki.txt   # Yuki reference dialogues (20 pairs)
-│   ├── dialogues_hana.txt   # Hana reference dialogues (20 pairs)
-│   ├── dialogues_sora.txt   # Sora reference dialogues (20 pairs)
-│   ├── dialogues_rei.txt    # Rei reference dialogues (20 pairs)
-│   └── dialogues_kaito.txt  # Kaito reference dialogues (20 pairs)
-└── AI_Girlfriend.ipynb      # Main notebook
+│   ├── anime_dialogues.txt
+│   ├── dialogues_yuki.txt
+│   ├── dialogues_hana.txt
+│   ├── dialogues_sora.txt
+│   ├── dialogues_rei.txt
+│   ├── dialogues_kaito.txt
+│   └── custom_dialogues/
+├── memory/
+└── src/
+    ├── character_select.py
+    ├── custom_ai.py
+    ├── evaluation.py
+    ├── memory.py
+    ├── model.py
+    └── persona.py
 ```
 
 ---
 
-## Quick Start (Google Colab)
+## Quick Start
 
-1. Open `AI_Girlfriend.ipynb` in Google Colab.
-2. Set Runtime → **T4 GPU** (Runtime → Change runtime type).
-3. Click **Runtime → Run all**.
-4. In Cell 0-A, **choose a character** and **your gender** when prompted.
-5. The model loads automatically (~3-4 minutes on first run).
-6. Chat in Section 3.
+1. Open `AI_PartnerV1.3.ipynb` in Google Colab.
+2. Set Runtime to T4 GPU if you want to load the default 7B model.
+3. Run setup and project validation cells. In Colab, the setup cell clones or
+   updates `https://github.com/XVentCrossX/TestingAI.git` first if the notebook
+   is not already inside a complete repo checkout.
+4. Choose an existing character or create a custom AI.
+5. Preview the persona prompt.
+6. Load the model.
+7. Chat, save memory, and add dialogue examples.
 
----
+For local testing, install the milestone dependencies:
 
-## Key Features
-
-### Multi-Character Selection
-Run `select_character()` at startup to pick from 6 characters across 5 dere
-archetypes. Each character has a unique personality, speech style, background,
-and 20 reference dialogue pairs for evaluation.
-
-### Gender-Aware Interactions
-`select_user_gender()` at startup sets whether the user is male, female, or
-neutral. The system prompt is adjusted accordingly — romantic undertones,
-terms of address, and tone all shift based on the combination of user gender
-and character gender.
-
-### Hot-Swap Characters
-The optional Character Switch cell lets you swap personas mid-session without
-reloading the model. Memory is cleared on switch.
-
-### Rolling Memory
-`ConversationMemory` uses a sliding window of the last `window_size` turns
-(default: 10). When the window fills, older turns are condensed into a summary
-using `distilbart-cnn-12-6`, which is injected back into the system prompt.
-
-### Evaluation
-- **BLEU-4** (corpus-level, smoothed): persona-conditioned vs. baseline
-- **Perplexity**: sliding-window on each character's reference dialogue file
-- **Side-by-side table**: qualitative comparison across 10 sample turns
-
----
-
-## Hyperparameters (`config/config.json`)
-
-| Parameter | Value | Notes |
-|-----------|-------|-------|
-| model | Qwen/Qwen2.5-7B-Instruct | ~7B params, instruction-tuned |
-| quantization | 4bit | NF4, double quant, fp16 compute |
-| temperature | 0.8 | Controls randomness |
-| top_p | 0.9 | Nucleus sampling |
-| top_k | 50 | Top-k filtering |
-| repetition_penalty | 1.1 | Reduces looping |
-| max_new_tokens | 120 | Max reply length |
-| memory window | 10 turns | Before summarization triggers |
-| seed | 42 | Reproducibility |
-
----
-
-## Reproducibility
-
-All random states are seeded at `42` via:
-
-```python
-torch.manual_seed(42)
-torch.cuda.manual_seed_all(42)
-random.seed(42)
+```bash
+pip install -r requirements.txt
 ```
 
-`reset_conversation()` re-seeds the generator to ensure deterministic replay.
+---
+
+## Built-In Characters
+
+| ID | Name | Type | Gender |
+|---|---|---|---|
+| `mai` | Mai Sakurajima | Tsundere | Female |
+| `yuki` | Yuki Amane | Kuudere | Female |
+| `hana` | Hana Mizuki | Dandere | Female |
+| `sora` | Sora Himari | Deredere | Female |
+| `rei` | Rei Shirogane | Himedere | Female |
+| `kaito` | Kaito Ryusei | Kuudere | Male |
 
 ---
 
-## Limitations & Ethics
+## Custom AI Creator
 
-- **Persona accuracy**: BLEU scores are low (~0.003) because BLEU is a poor
-  metric for open-domain dialogue; qualitative reading of the comparison table
-  is more informative.
-- **Character bias**: All female characters default to heteronormative
-  romantic framing toward male users. This reflects the source material's
-  conventions and may not represent all users.
-- **Model bias**: Qwen 2.5-7B was trained on broad web data; it may
-  occasionally produce responses inconsistent with a character's defined
-  personality, particularly for edge-case or emotionally ambiguous prompts.
-- **Perplexity inflation**: Stylized anime dialogue diverges from the model's
-  training distribution (general web text), so perplexity is expected to be
-  higher than on standard benchmarks.
-- **Dataset size**: Each character has 20–30 reference pairs — sufficient for
-  comparative evaluation but too small for fine-tuning.
-- **Content handling**: The persona system prompt includes a dislike for
-  "perverted comments"; however, the underlying LLM is the final gatekeeper
-  and may not always enforce this in out-of-distribution inputs.
+V1.3 can create a new character from normal notebook inputs:
+
+- Name, gender, and age
+- Relationship mode
+- Personality, speech style, and background
+- Likes and dislikes
+- Gender-aware greetings
+- Boundaries and custom rules
+- Response length and language style
+
+The new character is saved into `config/characters.json`, and a matching
+dialogue file is created automatically under `data/custom_dialogues/`.
 
 ---
 
-## Adding a New Character
+## Persistent Memory
 
-1. Add an entry to `config/characters.json` following the existing schema.
-2. Create `data/dialogues_<id>.txt` with at least 15 USER/CHARACTER pairs.
-3. The character will appear automatically in `select_character()` on next run.
+`ConversationMemory` now supports:
+
+- `save_memory(path, character_id=None)`
+- `load_memory(path)`
+- `clear_memory(path=None)`
+
+The V1.3 notebook stores memory by character in:
+
+```text
+memory/<character_id>_memory.json
+```
+
+Saved memory contains the character id, summary, recent history, and turn count.
+
+---
+
+## Dialogue Examples
+
+Custom dialogue examples use a beginner-friendly format:
+
+```text
+USER: Are you mad at me?
+CHARACTER: No. I just wish you told me earlier.
+
+USER: I missed you.
+CHARACTER: You say that so casually. I missed you too.
+```
+
+The notebook validates and appends these examples to the current character's
+custom dialogue file. A small number of examples is useful for prompt/style
+testing, but it is not enough for reliable fine-tuning.
+
+---

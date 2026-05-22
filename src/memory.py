@@ -128,3 +128,53 @@ class ConversationMemory:
         self.history.clear()
         self.summary = ""
         self.turn_count = 0
+
+    def save_memory(
+        self,
+        path: str | Path,
+        character_id: Optional[str] = None,
+    ) -> Path:
+        """Persist the current memory state as JSON."""
+        memory_path = Path(path)
+        memory_path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "character_id": character_id,
+            "summary": self.summary,
+            "history": self.history,
+            "turn_count": self.turn_count,
+        }
+        with memory_path.open("w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+        return memory_path
+
+    def load_memory(self, path: str | Path) -> "ConversationMemory":
+        """Load a saved memory JSON file into this memory object."""
+        memory_path = Path(path)
+        with memory_path.open("r", encoding="utf-8") as f:
+            data: dict[str, Any] = json.load(f)
+
+        self.summary = str(data.get("summary", ""))
+        self.history = [
+            {
+                "role": str(turn.get("role", "")),
+                "content": str(turn.get("content", "")),
+            }
+            for turn in data.get("history", [])
+            if isinstance(turn, dict)
+        ]
+        self.turn_count = int(
+            data.get(
+                "turn_count",
+                sum(1 for turn in self.history if turn.get("role") == "user"),
+            )
+        )
+        return self
+
+    def clear_memory(self, path: str | Path | None = None) -> None:
+        """Clear in-memory state and optionally remove a saved memory file."""
+        self.reset()
+        if path is not None:
+            memory_path = Path(path)
+            if memory_path.exists():
+                memory_path.unlink()

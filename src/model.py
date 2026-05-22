@@ -7,6 +7,7 @@ memory summary, and the recent dialogue history (chat-template messages).
 
 from __future__ import annotations
 
+import gc
 import json
 from pathlib import Path
 from typing import Any, Optional
@@ -24,6 +25,7 @@ class PersonaChatbot:
         persona: Persona,
         memory: ConversationMemory,
         model_name: str = "Qwen/Qwen2.5-7B-Instruct",
+        fallback_model_name: Optional[str] = None,
         max_new_tokens: int = 120,
         temperature: float = 0.8,
         top_p: float = 0.9,
@@ -33,11 +35,13 @@ class PersonaChatbot:
         seed: int = 42,
         device: Optional[str] = None,
         quantization: str = "none",
+        save_memory_path: Optional[str | Path] = None,
     ) -> None:
         self.persona = persona
         self.memory  = memory
 
         self.model_name        = model_name
+        self.fallback_model_name = fallback_model_name
         self.max_new_tokens    = max_new_tokens
         self.temperature       = temperature
         self.top_p             = top_p
@@ -46,6 +50,7 @@ class PersonaChatbot:
         self.do_sample         = do_sample
         self.seed              = seed
         self.quantization      = quantization
+        self.save_memory_path  = Path(save_memory_path) if save_memory_path else None
 
         torch.manual_seed(seed)
         if torch.cuda.is_available():
@@ -57,25 +62,52 @@ class PersonaChatbot:
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        if quantization == "4bit" and torch.cuda.is_available():
+        try:
+            self.model = self._load_model(model_name)
+        except Exception as error:
+            if not self._is_cuda_oom(error) or not fallback_model_name:
+                raise
+            self._clear_cuda_memory()
+            print(
+                f"CUDA out of memory while loading {model_name}. "
+                f"Retrying with fallback model: {fallback_model_name}"
+            )
+            self.model_name = fallback_model_name
+            self.tokenizer = AutoTokenizer.from_pretrained(fallback_model_name)
+            if self.tokenizer.pad_token is None:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            self.model = self._load_model(fallback_model_name)
+
+        self.model.eval()
+
+    def _load_model(self, model_name: str):
+        if self.quantization == "4bit" and torch.cuda.is_available():
             bnb = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.float16,
                 bnb_4bit_quant_type="nf4",
                 bnb_4bit_use_double_quant=True,
             )
-            self.model = AutoModelForCausalLM.from_pretrained(
+            return AutoModelForCausalLM.from_pretrained(
                 model_name, quantization_config=bnb, device_map="auto"
             )
-        elif quantization == "8bit" and torch.cuda.is_available():
+        if self.quantization == "8bit" and torch.cuda.is_available():
             bnb = BitsAndBytesConfig(load_in_8bit=True)
-            self.model = AutoModelForCausalLM.from_pretrained(
+            return AutoModelForCausalLM.from_pretrained(
                 model_name, quantization_config=bnb, device_map="auto"
             )
-        else:
-            self.model = AutoModelForCausalLM.from_pretrained(model_name).to(self.device)
+        return AutoModelForCausalLM.from_pretrained(model_name).to(self.device)
 
-        self.model.eval()
+    def _clear_cuda_memory(self) -> None:
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+
+    @staticmethod
+    def _is_cuda_oom(error: BaseException) -> bool:
+        message = str(error).lower()
+        return "cuda out of memory" in message or "outofmemoryerror" in message
 
     @classmethod
     def from_config(
@@ -99,6 +131,7 @@ class PersonaChatbot:
             persona=persona,
             memory=memory,
             model_name=m.get("name", "Qwen/Qwen2.5-7B-Instruct"),
+            fallback_model_name=m.get("fallback_model"),
             max_new_tokens=m.get("max_new_tokens", 120),
             temperature=m.get("temperature", 0.8),
             top_p=m.get("top_p", 0.9),
@@ -169,6 +202,11 @@ class PersonaChatbot:
         if record:
             self.memory.add_turn("user",      user_input)
             self.memory.add_turn("assistant", reply)
+            if self.save_memory_path is not None:
+                self.memory.save_memory(
+                    self.save_memory_path,
+                    character_id=self.persona.character_id,
+                )
 
         return reply
 
@@ -188,3 +226,26 @@ class PersonaChatbot:
         )
         self.reset_conversation()
         print(f"Switched to {self.persona.name}  [{self.persona.dere_type}]")
+
+    def update_generation_settings(
+        self,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
+        max_new_tokens: Optional[int] = None,
+        repetition_penalty: Optional[float] = None,
+        do_sample: Optional[bool] = None,
+    ) -> None:
+        """Update generation settings without reloading the model."""
+        if temperature is not None:
+            self.temperature = float(temperature)
+        if top_p is not None:
+            self.top_p = float(top_p)
+        if top_k is not None:
+            self.top_k = int(top_k)
+        if max_new_tokens is not None:
+            self.max_new_tokens = int(max_new_tokens)
+        if repetition_penalty is not None:
+            self.repetition_penalty = float(repetition_penalty)
+        if do_sample is not None:
+            self.do_sample = bool(do_sample)

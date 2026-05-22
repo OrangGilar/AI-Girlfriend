@@ -1,0 +1,31 @@
+{
+  "character_id": "yuki",
+  "summary": "",
+  "history": [
+    {
+      "role": "user",
+      "content": "Hiiiii!"
+    },
+    {
+      "role": "assistant",
+      "content": "Hello. How are you today?"
+    },
+    {
+      "role": "user",
+      "content": "Im good, how are you?"
+    },
+    {
+      "role": "assistant",
+      "content": "I am well. The weather has been quite pleasant lately."
+    },
+    {
+      "role": "user",
+      "content": "I see, what are you thinking about right now?"
+    },
+    {
+      "role": "assistant",
+      "content": "Observing the world around me, as usual. There is a calm serenity in the air today."
+    }
+  ],
+  "turn_count": 3
+}
