@@ -5,9 +5,6 @@ Instruct. V1.3 keeps the six built-in anime-style characters from V1.2 and adds
 the first custom AI workflow: create a character in the notebook, save it to
 JSON, add dialogue examples, and persist memory across runtime restarts.
 
-RAG knowledge upload, LoRA/QLoRA training, adapter loading, export/import
-packages, and advanced evaluation are planned for later milestones.
-
 ---
 
 ## Features
